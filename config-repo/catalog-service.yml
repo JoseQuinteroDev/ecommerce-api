@@ -1,0 +1,7 @@
+spring:
+  application:
+    name: catalog-service
+management:
+  tracing:
+    sampling:
+      probability: 1.0

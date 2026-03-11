@@ -1,0 +1,84 @@
+version: "3.9"
+
+x-mysql-common: &mysql-common
+  image: mysql:8.4
+  environment:
+    MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+  healthcheck:
+    test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-proot"]
+    interval: 10s
+    timeout: 5s
+    retries: 10
+
+services:
+  mysql-auth:
+    <<: *mysql-common
+    ports: ["33061:3306"]
+    volumes: ["./docker/mysql/auth/init.sql:/docker-entrypoint-initdb.d/init.sql"]
+  mysql-customer:
+    <<: *mysql-common
+    ports: ["33062:3306"]
+    volumes: ["./docker/mysql/customer/init.sql:/docker-entrypoint-initdb.d/init.sql"]
+  mysql-catalog:
+    <<: *mysql-common
+    ports: ["33063:3306"]
+    volumes: ["./docker/mysql/catalog/init.sql:/docker-entrypoint-initdb.d/init.sql"]
+  mysql-inventory:
+    <<: *mysql-common
+    ports: ["33064:3306"]
+    volumes: ["./docker/mysql/inventory/init.sql:/docker-entrypoint-initdb.d/init.sql"]
+  mysql-cart:
+    <<: *mysql-common
+    ports: ["33065:3306"]
+    volumes: ["./docker/mysql/cart/init.sql:/docker-entrypoint-initdb.d/init.sql"]
+  mysql-order:
+    <<: *mysql-common
+    ports: ["33066:3306"]
+    volumes: ["./docker/mysql/order/init.sql:/docker-entrypoint-initdb.d/init.sql"]
+  mysql-payment:
+    <<: *mysql-common
+    ports: ["33067:3306"]
+    volumes: ["./docker/mysql/payment/init.sql:/docker-entrypoint-initdb.d/init.sql"]
+  mysql-batch:
+    <<: *mysql-common
+    ports: ["33068:3306"]
+    volumes: ["./docker/mysql/batch/init.sql:/docker-entrypoint-initdb.d/init.sql"]
+
+  discovery-service:
+    build: ./services/discovery-service
+    ports: ["8761:8761"]
+  config-server:
+    build: ./services/config-server
+    environment:
+      SPRING_PROFILES_ACTIVE: native
+    ports: ["8888:8888"]
+    volumes:
+      - ./config-repo:/config-repo
+  api-gateway:
+    build: ./services/api-gateway
+    ports: ["8080:8080"]
+
+  auth-service:
+    build: ./services/auth-service
+    ports: ["8081:8081"]
+  customer-service:
+    build: ./services/customer-service
+    ports: ["8082:8082"]
+  catalog-service:
+    build: ./services/catalog-service
+    ports: ["8083:8083"]
+  inventory-service:
+    build: ./services/inventory-service
+    ports: ["8084:8084"]
+  cart-service:
+    build: ./services/cart-service
+    ports: ["8085:8085"]
+  order-service:
+    build: ./services/order-service
+    ports: ["8086:8086"]
+  payment-service:
+    build: ./services/payment-service
+    ports: ["8087:8087"]
+  batch-service:
+    build: ./services/batch-service
+    ports: ["8088:8088"]

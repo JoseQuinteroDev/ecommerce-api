@@ -1,0 +1,34 @@
+spring:
+  application:
+    name: order-service
+  datasource:
+    url: jdbc:mysql://localhost:3306/order_db
+    username: root
+    password: ${MYSQL_ROOT_PASSWORD:root}
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+  flyway:
+    enabled: true
+server:
+  port: 8086
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+clients:
+  inventory:
+    url: ${INVENTORY_SERVICE_URL:http://localhost:8084}
+  payment:
+    url: ${PAYMENT_SERVICE_URL:http://localhost:8087}
+resilience4j:
+  circuitbreaker:
+    instances:
+      inventoryService:
+        slidingWindowSize: 10
+        failureRateThreshold: 50
+      paymentService:
+        slidingWindowSize: 10
+        failureRateThreshold: 50
