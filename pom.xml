@@ -1,0 +1,21 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.commercehub</groupId>
+  <artifactId>commercehub</artifactId>
+  <version>0.0.1-SNAPSHOT</version>
+  <packaging>pom</packaging>
+
+  <modules>
+    <module>services/config-server</module>
+    <module>services/discovery-service</module>
+    <module>services/api-gateway</module>
+    <module>services/auth-service</module>
+    <module>services/customer-service</module>
+    <module>services/catalog-service</module>
+    <module>services/inventory-service</module>
+    <module>services/cart-service</module>
+    <module>services/order-service</module>
+    <module>services/payment-service</module>
+    <module>services/batch-service</module>
+  </modules>
+</project>
