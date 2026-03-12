@@ -2,8 +2,10 @@ package com.commercehub.auth.auth.controller;
 
 import com.commercehub.auth.auth.dto.AuthDtos.*;
 import com.commercehub.auth.auth.service.AuthService;
+import com.commercehub.auth.security.model.JwtPrincipal;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -36,7 +38,7 @@ public class AuthController {
   }
 
   @GetMapping("/me")
-  public ResponseEntity<String> me() {
-    return ResponseEntity.ok("Perfil de usuario autenticado");
+  public ResponseEntity<MeResponse> me(@AuthenticationPrincipal JwtPrincipal principal) {
+    return ResponseEntity.ok(authService.me(principal.userId()));
   }
 }

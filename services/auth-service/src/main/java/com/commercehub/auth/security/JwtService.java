@@ -1,5 +1,6 @@
 package com.commercehub.auth.security;
 
+import com.commercehub.auth.security.model.JwtPrincipal;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
@@ -18,14 +19,18 @@ public class JwtService {
     this.key = Keys.hmacShaKeyFor(secret.repeat(3).substring(0, 32).getBytes(StandardCharsets.UTF_8));
   }
 
-  public String generateAccessToken(String subject) {
+  public String generateAccessToken(Long userId, String email) {
     Instant now = Instant.now();
-    return Jwts.builder()
-        .subject(subject)
-        .issuedAt(Date.from(now))
-        .expiration(Date.from(now.plusSeconds(900)))
-        .claim("roles", "ROLE_CUSTOMER")
-        .signWith(key, SignatureAlgorithm.HS256)
-        .compact();
+    return Jwts.builder().subject(String.valueOf(userId)).issuedAt(Date.from(now)).expiration(Date.from(now.plusSeconds(900)))
+        .claim("email", email).claim("roles", "ROLE_CUSTOMER").signWith(key, SignatureAlgorithm.HS256).compact();
+  }
+
+  public JwtPrincipal parse(String token) {
+    try {
+      var claims = Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload();
+      return new JwtPrincipal(Long.valueOf(claims.getSubject()), claims.get("email", String.class));
+    } catch (Exception e) {
+      return null;
+    }
   }
 }

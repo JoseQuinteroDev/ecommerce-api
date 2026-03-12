@@ -1,40 +1,83 @@
 package com.commercehub.auth.auth.service;
 
 import com.commercehub.auth.auth.dto.AuthDtos.*;
+import com.commercehub.auth.auth.entity.RefreshToken;
+import com.commercehub.auth.auth.entity.UserAccount;
+import com.commercehub.auth.auth.repository.RefreshTokenRepository;
+import com.commercehub.auth.auth.repository.UserAccountRepository;
 import com.commercehub.auth.security.JwtService;
-import java.util.Map;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.time.Instant;
+import java.util.HexFormat;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class AuthService {
-  private final Map<String, String> users = new ConcurrentHashMap<>();
-  private final Map<String, String> refreshTokens = new ConcurrentHashMap<>();
+  private final UserAccountRepository userRepository;
+  private final RefreshTokenRepository refreshTokenRepository;
   private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
   private final JwtService jwtService;
 
-  public AuthService(JwtService jwtService) { this.jwtService = jwtService; }
+  public AuthService(UserAccountRepository userRepository, RefreshTokenRepository refreshTokenRepository, JwtService jwtService) {
+    this.userRepository = userRepository;
+    this.refreshTokenRepository = refreshTokenRepository;
+    this.jwtService = jwtService;
+  }
 
+  @Transactional
   public void register(RegisterRequest request) {
-    users.putIfAbsent(request.email(), encoder.encode(request.password()));
+    if (userRepository.findByEmail(request.email()).isPresent()) throw new IllegalArgumentException("El email ya existe");
+    UserAccount user = new UserAccount();
+    user.setEmail(request.email());
+    user.setPasswordHash(encoder.encode(request.password()));
+    user.setEmailVerified(true);
+    userRepository.save(user);
   }
 
+  @Transactional
   public AuthResponse login(LoginRequest request) {
-    String hash = users.get(request.email());
-    if (hash == null || !encoder.matches(request.password(), hash)) throw new IllegalArgumentException("Credenciales inválidas");
-    String access = jwtService.generateAccessToken(request.email());
-    String refresh = UUID.randomUUID().toString();
-    refreshTokens.put(refresh, request.email());
-    return new AuthResponse(access, refresh, "Bearer", 900);
+    UserAccount user = userRepository.findByEmail(request.email()).orElseThrow(() -> new IllegalArgumentException("Credenciales inválidas"));
+    if (!encoder.matches(request.password(), user.getPasswordHash())) throw new IllegalArgumentException("Credenciales inválidas");
+    String refreshPlain = UUID.randomUUID().toString();
+    RefreshToken token = new RefreshToken();
+    token.setUser(user);
+    token.setTokenHash(hash(refreshPlain));
+    token.setExpiresAt(Instant.now().plusSeconds(60L * 60L * 24L * 15L));
+    refreshTokenRepository.save(token);
+    return new AuthResponse(jwtService.generateAccessToken(user.getId(), user.getEmail()), refreshPlain, "Bearer", 900);
   }
 
+  @Transactional(readOnly = true)
   public AuthResponse refresh(RefreshRequest request) {
-    String email = refreshTokens.get(request.refreshToken());
-    if (email == null) throw new IllegalArgumentException("Refresh token inválido");
-    return new AuthResponse(jwtService.generateAccessToken(email), request.refreshToken(), "Bearer", 900);
+    RefreshToken token = refreshTokenRepository
+        .findByTokenHashAndRevokedAtIsNullAndExpiresAtAfter(hash(request.refreshToken()), Instant.now())
+        .orElseThrow(() -> new IllegalArgumentException("Refresh token inválido"));
+    UserAccount user = token.getUser();
+    return new AuthResponse(jwtService.generateAccessToken(user.getId(), user.getEmail()), request.refreshToken(), "Bearer", 900);
   }
 
-  public void logout(String refreshToken) { refreshTokens.remove(refreshToken); }
+  @Transactional
+  public void logout(String refreshToken) {
+    refreshTokenRepository.findByTokenHashAndRevokedAtIsNullAndExpiresAtAfter(hash(refreshToken), Instant.now())
+        .ifPresent(token -> token.setRevokedAt(Instant.now()));
+  }
+
+  @Transactional(readOnly = true)
+  public MeResponse me(Long userId) {
+    UserAccount user = userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
+    return new MeResponse(user.getId(), user.getEmail(), user.getStatus().name());
+  }
+
+  private String hash(String value) {
+    try {
+      MessageDigest digest = MessageDigest.getInstance("SHA-256");
+      return HexFormat.of().formatHex(digest.digest(value.getBytes(StandardCharsets.UTF_8)));
+    } catch (Exception e) {
+      throw new IllegalStateException("No se pudo hashear token", e);
+    }
+  }
 }

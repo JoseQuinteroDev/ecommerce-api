@@ -8,6 +8,7 @@ spring:
   jpa:
     hibernate:
       ddl-auto: none
+    open-in-view: false
   flyway:
     enabled: true
 server:
@@ -17,6 +18,17 @@ management:
     web:
       exposure:
         include: health,info,prometheus
-security:
-  jwt:
-    secret: ${JWT_SECRET:change-me-super-secret-key-32chars}
+clients:
+  inventory:
+    url: ${INVENTORY_SERVICE_URL:http://localhost:8084}
+  payment:
+    url: ${PAYMENT_SERVICE_URL:http://localhost:8087}
+resilience4j:
+  circuitbreaker:
+    instances:
+      inventoryService:
+        slidingWindowSize: 10
+        failureRateThreshold: 50
+      paymentService:
+        slidingWindowSize: 10
+        failureRateThreshold: 50
